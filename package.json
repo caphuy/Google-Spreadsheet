@@ -1,0 +1,14 @@
+{
+  "name": "google-sheet-app",
+  "version": "1.0.0",
+  "description": "",
+  "main": "app.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Sudo",
+  "license": "ISC",
+  "dependencies": {
+    "googleapis": "^27.0.0"
+  }
+}
