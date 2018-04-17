@@ -10,14 +10,14 @@ const OAuth2Client = google.auth.OAuth2,
       SPREADSHEET_ID = '1eH2lfZJDrjkJV9AJjsP_vLyEdpvtUmdfcEONtoYEUWE',
       DATA_TO_WRITE = [new Date().toISOString(), "Some value", "Another value"];
 
-readSpreadsheet();
+// readSpreadsheet();
 // writeSpreadsheet();
 
 /**
  * Read data from spreadsheet
  * 
  */
-function readSpreadsheet() {
+const readSpreadsheet = function () {
   fs.readFile('client_secret.json', (err, content) => {
     if (err) {
       return console.log('Error loading client secret file: ', err);
@@ -30,7 +30,7 @@ function readSpreadsheet() {
  * Write data to spreadsheet
  * 
  */
-function writeSpreadsheet() {
+const writeSpreadsheet = function () {
   fs.readFile('client_secret.json', (err, content) => {
     if (err) {
       return console.log('Error loading client secret file: ', err);
@@ -143,3 +143,7 @@ function writeData(auth) {
   })
 }
 
+module.exports = {
+  readSpreadsheet: readSpreadsheet,
+  writeSpreadsheet: writeSpreadsheet
+}
