@@ -17,26 +17,21 @@ const OAuth2Client = google.auth.OAuth2,
  * Read data from spreadsheet
  * 
  */
-const readSpreadsheet = function () {
-  fs.readFile('client_secret.json', (err, content) => {
-    if (err) {
-      return console.log('Error loading client secret file: ', err);
-    }
-    authorize(JSON.parse(content), getData);
-  });
+const readSpreadsheet = async function () {
+  const content = fs.readFileSync('client_secret.json');
+  const auth = await authorize(JSON.parse(content));
+  const rows = await getData(auth);
+  return rows;
 }
 
 /**
  * Write data to spreadsheet
  * 
  */
-const writeSpreadsheet = function () {
-  fs.readFile('client_secret.json', (err, content) => {
-    if (err) {
-      return console.log('Error loading client secret file: ', err);
-    }
-    authorize(JSON.parse(content), writeData);
-  });
+const writeSpreadsheet = async function () {
+  const content = fs.readFileSync('client_secret.json');
+  const auth = await authorize(JSON.parse(content));
+  await writeData(auth);
 }
 
 /**
@@ -45,16 +40,16 @@ const writeSpreadsheet = function () {
  * @param {*} credentials 
  * @param {*} callback 
  */
-function authorize(credentials, callback) {
+async function authorize(credentials) {
   const {client_secret, client_id, redirect_uris} = credentials.installed;
   const oAuth2Client = new OAuth2Client(client_id, client_secret, redirect_uris[0]);
-  fs.readFile(TOKEN_PATH, (err, token) => {
-    if (err || token === void(0)) {
-      return getNewToken(oAuth2, callback);
-    }
+  const token = fs.readFileSync(TOKEN_PATH);
+  if (token !== void(0) && token !== null) {
     oAuth2Client.setCredentials(JSON.parse(token));
-    callback(oAuth2Client);
-  });
+  } else {
+    return await getNewToken(oAuth2, callback);
+  }
+  return oAuth2Client;
 }
 
 /**
@@ -63,7 +58,7 @@ function authorize(credentials, callback) {
  * @param {*} oAuth2Client 
  * @param {*} callback 
  */
-function getNewToken(oAuth2Client, callback) {
+async function getNewToken(oAuth2Client) {
   const authUrl = oAuth2Client.generateAuthUrl({
     access_type: 'offline',
     scope: SCOPES,
@@ -73,23 +68,12 @@ function getNewToken(oAuth2Client, callback) {
     input: process.stdin,
     output: process.stdout
   });
-  rl.question('Enter the code from that page here: ', (code) => {
-    rl.close();
-    oAuth2Client.getToken(code, (err, token) => {
-      if (err) {
-        return callback(err);
-      }
-      oAuth2Client.setCredentials(token);
-      fs.writeFile(TOKEN_PATH, JSON.stringify(token), (err) => {
-        if (err) {
-          consolse.log(err);
-        }
-        console.log('Token stored to ', TOKEN_PATH);
-      });
-      callback(oAuth2Client);
-    })
-    
-  });
+  const code = await rl.question('Enter the code from that page here: ');
+  const token = await oAuth2Client.getToken(code, (err, token));
+  oAuth2Client.setCredentials(token);
+  fs.writeFileSync(TOKEN_PATH, JSON.stringify(token));
+  console.log('Token stored to ', TOKEN_PATH);
+  return oAuth2Client;
 }
 
 /**
@@ -98,23 +82,29 @@ function getNewToken(oAuth2Client, callback) {
  * @param {*} auth 
  */
 function getData(auth) {
-  const sheets = google.sheets({version: 'v4', auth});
-  sheets.spreadsheets.values.get({
-    spreadsheetId: SPREADSHEET_ID,
-    range: 'Sheet1'
-  }, (err, {data}) => {
-    if (err) {
-      return console.log('The API returned an error: ' + err);
-    }
-    const rows = data.values;
-    if (rows.length) {
-      rows.map((row) => {
-        console.log(`${row[0]}, ${row[1]}, ${row[2]}`);
-      });
-    } else {
-      console.log('No data found');
-    }
-  });
+  return new Promise((resolve, reject) => {
+    const sheets = google.sheets({version: 'v4', auth});
+  
+    sheets.spreadsheets.values.get({
+      spreadsheetId: SPREADSHEET_ID,
+      range: 'Sheet1'
+    }, (err, {data}) => {
+      if (err) {
+        reject(err);
+      }
+      const rows = data.values;
+      resolve(rows);
+      // if (rows.length) {
+      //   rows.map((row) => {
+      //     console.log(`${row[0]}, ${row[1]}, ${row[2]}`);
+      //   });
+      //   return rows;
+      // } else {
+      //   console.log('No data found');
+      // }
+    });
+  })
+  
 }
 
 /**

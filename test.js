@@ -1,3 +1,5 @@
 const x = require('./app');
 
-x.readSpreadsheet();
+x.readSpreadsheet().then(data => {
+  console.log(data);
+})
