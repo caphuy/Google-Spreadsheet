@@ -7,17 +7,19 @@ const fs = require('fs'),
 const OAuth2Client = google.auth.OAuth2,
       SCOPES = ['https://www.googleapis.com/auth/spreadsheets'],
       TOKEN_PATH = 'credentials.json',
-      SPREADSHEET_ID = '1eH2lfZJDrjkJV9AJjsP_vLyEdpvtUmdfcEONtoYEUWE',
+      SPREADSHEET_ID = '1SgFwFpOSQKObLwubVrMOphKH5pyL5VhWMpnjkg32nj4',
       DATA_TO_WRITE = [new Date().toISOString(), "Some value", "Another value"];
 
-// readSpreadsheet();
+readSpreadsheet().then(data => {
+  console.log(data);
+})
 // writeSpreadsheet();
 
 /**
  * Read data from spreadsheet
  * 
  */
-const readSpreadsheet = async function () {
+async function readSpreadsheet () {
   const content = fs.readFileSync('client_secret.json');
   const auth = await authorize(JSON.parse(content));
   const rows = await getData(auth);
@@ -31,6 +33,7 @@ const readSpreadsheet = async function () {
 const writeSpreadsheet = async function () {
   const content = fs.readFileSync('client_secret.json');
   const auth = await authorize(JSON.parse(content));
+  console.log(auth);
   await writeData(auth);
 }
 
@@ -43,11 +46,11 @@ const writeSpreadsheet = async function () {
 async function authorize(credentials) {
   const {client_secret, client_id, redirect_uris} = credentials.installed;
   const oAuth2Client = new OAuth2Client(client_id, client_secret, redirect_uris[0]);
-  const token = fs.readFileSync(TOKEN_PATH);
-  if (token !== void(0) && token !== null) {
+  const token = await fs.readFileSync(TOKEN_PATH, 'utf8');
+  if (token !== '' && token !== void(0) && token !== null) {
     oAuth2Client.setCredentials(JSON.parse(token));
   } else {
-    return await getNewToken(oAuth2, callback);
+    return await getNewToken(oAuth2Client);
   }
   return oAuth2Client;
 }
@@ -64,16 +67,26 @@ async function getNewToken(oAuth2Client) {
     scope: SCOPES,
   });
   console.log('Authorize this app by visiting this url:', authUrl);
-  const rl = readline.createInterface({
-    input: process.stdin,
-    output: process.stdout
-  });
-  const code = await rl.question('Enter the code from that page here: ');
-  const token = await oAuth2Client.getToken(code, (err, token));
-  oAuth2Client.setCredentials(token);
-  fs.writeFileSync(TOKEN_PATH, JSON.stringify(token));
-  console.log('Token stored to ', TOKEN_PATH);
-  return oAuth2Client;
+  try {
+    const givedCode = await (new Promise((resolve, reject) => {
+      const rl = readline.createInterface({
+        input: process.stdin,
+        output: process.stdout
+      });
+      rl.question('Enter the code from that page here: ', (code) => {
+        resolve(code);
+      });
+    }));
+    const token = (await oAuth2Client.getToken(givedCode)).tokens;
+    oAuth2Client.setCredentials(token);
+    fs.writeFileSync(TOKEN_PATH, JSON.stringify(token), 'utf8');
+    console.log('Token stored to ', TOKEN_PATH);
+    return oAuth2Client;
+  } catch (e) {
+    console.log(e);
+    // return e;
+  }
+  
 }
 
 /**
@@ -94,16 +107,8 @@ function getData(auth) {
       }
       const rows = data.values;
       resolve(rows);
-      // if (rows.length) {
-      //   rows.map((row) => {
-      //     console.log(`${row[0]}, ${row[1]}, ${row[2]}`);
-      //   });
-      //   return rows;
-      // } else {
-      //   console.log('No data found');
-      // }
     });
-  })
+  });
   
 }
 
